@@ -1,0 +1,60 @@
+# Stage 1: 50M model, 500M tokens, four arms
+# Reproduces results in results/stage1/
+# Run: python src/train.py --config configs/stage1.yaml
+
+stage: 1
+
+# Architecture -- 8L/512H/8A/1408FF ~51.4M unique params (tied embed/lm_head)
+n_layers:   8
+d_model:    512
+n_heads:    8
+d_ff:       1408    # SwiGLU dim ~= 2/3 * 4 * d_model, rounded to mult of 128
+seq_len:    1024
+vocab_size: 50257   # GPT-2 tokenizer
+
+# Training
+lr:            3.0e-4
+lr_min:        3.0e-5   # cosine floor = 10% of peak
+beta1:         0.9
+beta2:         0.95
+weight_decay:  0.1
+grad_clip:     1.0
+batch_size:    64        # 64 * 1024 = 65536 tokens/step
+grad_accum:    1
+tokens_total:  500000000
+warmup_steps:  300       # ~3.9% of ~7629 total steps
+eval_interval: 250       # ~30 eval points
+eval_batches:  50
+
+# Grokfast defaults (applied per-arm where grokfast: true)
+gf_alpha: 0.98
+gf_lamb:  2.0
+
+# Single seed -- all four arms start from the same init
+seed: 42
+
+# Arms: each specifies optimizer variant and whether to apply Grokfast
+arms:
+  - name:     baseline
+    beta1:    0.9
+    grokfast: false
+
+  - name:     grokfast_full
+    beta1:    0.9
+    grokfast: true
+    emb_only: false
+
+  - name:     grokfast_emb
+    beta1:    0.9
+    grokfast: true
+    emb_only: true
+
+  - name:     grokfast_nomomentum   # arm 4: isolates Grokfast from Adam momentum
+    beta1:    0.0
+    grokfast: true
+    emb_only: false
+
+# Paths
+data_cache:  fineweb_edu_tokens.bin
+results_dir: results/stage1
+device:      cuda

@@ -1,0 +1,63 @@
+# Stage 2: 200M model, 2B tokens, two arms
+# Reproduces results in results/stage2/
+#
+# Single GPU:
+#   python src/train.py --config configs/stage2.yaml --seeds 0 1
+#
+# Multiple GPUs (one seed per GPU, all in parallel):
+#   CUDA_VISIBLE_DEVICES=0 python src/train.py --config configs/stage2.yaml --seeds 0 --tag gpu0
+#   CUDA_VISIBLE_DEVICES=1 python src/train.py --config configs/stage2.yaml --seeds 1 --tag gpu1
+#   ...add more GPUs/seeds as desired
+#
+# Final verdict:
+#   python src/train.py --config configs/stage2.yaml --report-only
+
+stage: 2
+
+# Architecture -- 12L/1024H/16A/2816FF ~205.6M unique params (tied embed/lm_head)
+n_layers:   12
+d_model:    1024
+n_heads:    16
+d_ff:       2816    # SwiGLU dim ~= 2/3 * 4 * d_model, rounded to mult of 128
+seq_len:    1024
+vocab_size: 50257   # GPT-2 tokenizer
+
+# Training
+lr:            2.0e-4   # lower than Stage 1 -- 200M warrants more conservative LR
+lr_min:        2.0e-5   # cosine floor = 10% of peak
+beta1:         0.9
+beta2:         0.95
+weight_decay:  0.1
+grad_clip:     1.0
+batch_size:    64        # 64 * 1024 = 65536 tokens/step
+grad_accum:    4         # micro_batch=16; avoids OOM on 80GB GPU
+tokens_total:  2000000000
+warmup_steps:  2000      # ~3.3% of ~30517 total steps
+eval_interval: 2000      # ~15 eval points
+eval_batches:  50
+
+# Grokfast (applied to grokfast_emb arm only)
+gf_alpha: 0.98
+gf_lamb:  2.0
+
+# Two independent seeds; each seed pair starts from identical init
+seeds: [0, 1]
+
+# Two arms only (grokfast_full and nomomentum dropped after Stage 1)
+arms:
+  - name:     baseline
+    beta1:    0.9
+    grokfast: false
+
+  - name:     grokfast_emb
+    beta1:    0.9
+    grokfast: true
+    emb_only: true
+
+# Paths
+data_cache:  fineweb_edu_tokens_4b.bin
+results_dir: results/stage2
+device:      cuda
+
+# Multi-GPU: --tag namespaces run log and summary JSON so processes don't clobber
+tag: ""
