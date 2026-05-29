@@ -151,10 +151,10 @@ grokfast-embeddings/
 ```bibtex
 @misc{grokfast-embeddings-2026,
   title   = {Embedding-only Grokfast Reduces Rare-Token Perplexity in LLM Pretraining},
-  author  = {YOUR NAME},
+  author  = {Shaik Aman},
   year    = {2026},
   note    = {arXiv preprint, forthcoming},
-  url     = {https://github.com/YOUR_USERNAME/grokfast-embeddings}
+  url     = {https://github.com/aman-source/grokfast-embeddings}
 }
 ```
 
